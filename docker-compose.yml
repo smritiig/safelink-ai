@@ -1,0 +1,31 @@
+
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: safelink
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+
+  api:
+    build: .
+    env_file:
+      - .env
+    depends_on:
+      - db
+      - redis
+    environment:
+      DATABASE_URL: postgresql+psycopg2://postgres:postgres@db:5432/safelink
+      REDIS_URL: redis://redis:6379/0
+      BASE_URL: http://localhost:8000
+      AWS_REGION: us-east-1
+      BEDROCK_MODEL_ID: us.anthropic.claude-3-5-haiku-20241022-v1:0
+    ports:
+      - "8000:8000"

@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>SafeLink Warning</title>
+</head>
+<body>
+  <h2>⚠️ Potentially Unsafe Link</h2>
+
+  <div id="info">
+    Loading...
+  </div>
+
+  <br>
+  <button id="continueBtn">Continue Anyway</button>
+  <button onclick="window.history.back()">Go Back</button>
+
+  <script>
+    const code = window.location.pathname.split("/").pop();
+
+    fetch(`/api/link/${code}`)
+      .then(res => res.json())
+      .then(data => {
+        document.getElementById("info").innerHTML = `
+          <p><strong>Destination:</strong> ${data.original_url}</p>
+          <p><strong>Risk Score:</strong> ${data.risk_score ?? "Unknown"}</p>
+          <p><strong>Reason:</strong> ${data.risk_reason ?? "Not analyzed yet"}</p>
+        `;
+
+        document.getElementById("continueBtn").onclick = () => {
+          window.location.href = data.original_url;
+        };
+      });
+  </script>
+</body>
+</html>
