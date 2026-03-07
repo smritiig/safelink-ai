@@ -48,10 +48,7 @@ def generate_code(length: int = 6):
 
 @app.get("/", response_class=HTMLResponse)
 def home():
-    return """
-    <h2>SafeLink AI Running ✅</h2>
-    <p>Use POST /api/shorten to create links</p>
-    """
+    return open("web/index.html", "r").read()
 
 @app.post("/api/shorten", response_model=ShortenResponse)
 @limiter.limit("10/minute")

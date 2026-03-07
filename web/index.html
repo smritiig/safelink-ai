@@ -1,0 +1,639 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeLink AI — Secure URL Shortener</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #03050a;
+      --surface: #080c14;
+      --border: #0e1520;
+      --accent: #00ffe0;
+      --danger: #ff3c5a;
+      --warn: #ffb800;
+      --text: #c8d4e0;
+      --muted: #3a4a5a;
+      --font-display: 'Bebas Neue', sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-body: 'IBM Plex Sans', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      overflow-x: hidden;
+    }
+
+    /* Grid background */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,224,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,224,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Glow orb */
+    body::after {
+      content: '';
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 600px;
+      background: radial-gradient(ellipse, rgba(0,255,224,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 0 24px 80px;
+    }
+
+    /* NAV */
+    nav {
+      width: 100%;
+      max-width: 720px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 32px 0 0;
+      animation: fadeDown 0.6s ease both;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      text-decoration: none;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent), #0066ff);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .logo-text {
+      font-family: var(--font-display);
+      font-size: 22px;
+      letter-spacing: 2px;
+      color: #fff;
+    }
+
+    .logo-text span { color: var(--accent); }
+
+    .nav-link {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 2px;
+      color: var(--muted);
+      text-decoration: none;
+      text-transform: uppercase;
+      transition: color 0.2s;
+    }
+    .nav-link:hover { color: var(--accent); }
+
+    /* HERO */
+    .hero {
+      margin-top: 80px;
+      text-align: center;
+      animation: fadeUp 0.7s ease 0.1s both;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(0,255,224,0.06);
+      border: 1px solid rgba(0,255,224,0.15);
+      border-radius: 4px;
+      padding: 6px 14px;
+      margin-bottom: 28px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: blink 2s infinite;
+    }
+
+    .hero h1 {
+      font-family: var(--font-display);
+      font-size: clamp(52px, 8vw, 96px);
+      letter-spacing: 4px;
+      line-height: 0.95;
+      color: #fff;
+      margin-bottom: 20px;
+    }
+
+    .hero h1 .line2 {
+      color: var(--accent);
+      display: block;
+    }
+
+    .hero p {
+      font-size: 15px;
+      color: var(--muted);
+      font-weight: 300;
+      line-height: 1.7;
+      max-width: 420px;
+      margin: 0 auto 48px;
+      font-family: var(--font-mono);
+    }
+
+    /* INPUT CARD */
+    .card {
+      width: 100%;
+      max-width: 640px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 32px;
+      animation: fadeUp 0.7s ease 0.2s both;
+      box-shadow: 0 0 60px rgba(0,255,224,0.04);
+    }
+
+    .input-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .url-input {
+      flex: 1;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 18px;
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--text);
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .url-input::placeholder { color: var(--muted); }
+    .url-input:focus {
+      border-color: rgba(0,255,224,0.4);
+      box-shadow: 0 0 0 3px rgba(0,255,224,0.06);
+    }
+
+    .scan-btn {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      border-radius: 10px;
+      padding: 14px 24px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 500;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .scan-btn:hover { background: #fff; transform: translateY(-1px); }
+    .scan-btn:active { transform: translateY(0); }
+    .scan-btn:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+
+    .options-row {
+      display: flex;
+      gap: 16px;
+      align-items: center;
+    }
+
+    .option-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      cursor: pointer;
+      user-select: none;
+    }
+
+    .option-label input[type="checkbox"] {
+      accent-color: var(--accent);
+      width: 13px;
+      height: 13px;
+    }
+
+    .expiry-input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text);
+      width: 50px;
+      outline: none;
+    }
+
+    /* RESULT */
+    .result {
+      margin-top: 20px;
+      padding: 20px;
+      background: var(--bg);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      display: none;
+      animation: fadeUp 0.4s ease both;
+    }
+
+    .result.show { display: block; }
+
+    .result-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+    }
+
+    .short-url {
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: 500;
+      color: var(--accent);
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    .copy-btn {
+      background: rgba(0,255,224,0.08);
+      border: 1px solid rgba(0,255,224,0.2);
+      color: var(--accent);
+      border-radius: 6px;
+      padding: 6px 12px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      margin-left: 12px;
+      flex-shrink: 0;
+    }
+    .copy-btn:hover { background: rgba(0,255,224,0.15); }
+
+    .risk-bar-wrap {
+      margin-bottom: 10px;
+    }
+
+    .risk-bar-label {
+      display: flex;
+      justify-content: space-between;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted);
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .risk-bar-track {
+      height: 4px;
+      background: var(--border);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .risk-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .risk-reason {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    .risk-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-family: var(--font-mono);
+      font-size: 10px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      padding: 3px 10px;
+      border-radius: 4px;
+      font-weight: 500;
+    }
+
+    .badge-safe { background: rgba(0,255,224,0.1); color: var(--accent); border: 1px solid rgba(0,255,224,0.2); }
+    .badge-warn { background: rgba(255,184,0,0.1); color: var(--warn); border: 1px solid rgba(255,184,0,0.2); }
+    .badge-danger { background: rgba(255,60,90,0.1); color: var(--danger); border: 1px solid rgba(255,60,90,0.2); }
+
+    /* FEATURES */
+    .features {
+      width: 100%;
+      max-width: 640px;
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 12px;
+      margin-top: 24px;
+      animation: fadeUp 0.7s ease 0.3s both;
+    }
+
+    .feature {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+    }
+
+    .feature-icon {
+      font-size: 20px;
+      margin-bottom: 10px;
+    }
+
+    .feature-title {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: #fff;
+      margin-bottom: 6px;
+    }
+
+    .feature-desc {
+      font-size: 11px;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* FOOTER */
+    footer {
+      margin-top: 60px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+      text-align: center;
+      animation: fadeUp 0.7s ease 0.4s both;
+    }
+
+    footer a { color: var(--accent); text-decoration: none; }
+
+    /* ANIMATIONS */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes fadeDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .spinner {
+      width: 14px;
+      height: 14px;
+      border: 2px solid var(--bg);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      display: inline-block;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+
+    @media (max-width: 600px) {
+      .features { grid-template-columns: 1fr; }
+      .input-row { flex-direction: column; }
+      .hero h1 { font-size: 52px; }
+    }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <nav>
+    <a class="logo" href="/">
+      <div class="logo-icon">🔗</div>
+      <span class="logo-text">SAFE<span>LINK</span></span>
+    </a>
+    <a class="nav-link" href="/docs">API Docs →</a>
+  </nav>
+
+  <div class="hero">
+    <div class="hero-eyebrow">
+      <span class="dot"></span>
+      AI-Powered Security
+    </div>
+    <h1>SHORTEN.<span class="line2">STAY SAFE.</span></h1>
+    <p>Every link scanned by Claude AI + VirusTotal before it's shortened. Know the risk before you click.</p>
+  </div>
+
+  <div class="card">
+    <div class="input-row">
+      <input
+        class="url-input"
+        id="urlInput"
+        type="url"
+        placeholder="https://paste-your-url-here.com"
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <button class="scan-btn" id="scanBtn" onclick="handleScan()">
+        SCAN →
+      </button>
+    </div>
+
+    <div class="options-row">
+      <label class="option-label">
+        <input type="checkbox" id="oneTime" />
+        One-time link
+      </label>
+      <label class="option-label">
+        <input type="checkbox" id="hasExpiry" onchange="toggleExpiry()" />
+        Expires in
+        <input class="expiry-input" type="number" id="expiryDays" value="7" min="1" max="365" disabled />
+        days
+      </label>
+    </div>
+
+    <div class="result" id="result">
+      <div class="result-top">
+        <a class="short-url" id="shortUrl" href="#" target="_blank"></a>
+        <button class="copy-btn" onclick="copyUrl()">COPY</button>
+      </div>
+      <div class="risk-bar-wrap">
+        <div class="risk-bar-label">
+          <span>RISK SCORE</span>
+          <span id="riskBadge"></span>
+        </div>
+        <div class="risk-bar-track">
+          <div class="risk-bar-fill" id="riskBar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="risk-reason" id="riskReason"></div>
+    </div>
+  </div>
+
+  <div class="features">
+    <div class="feature">
+      <div class="feature-icon">🤖</div>
+      <div class="feature-title">AI Analysis</div>
+      <div class="feature-desc">Claude 3.5 Haiku reasons about every URL for phishing patterns</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🛡️</div>
+      <div class="feature-title">VirusTotal</div>
+      <div class="feature-desc">Cross-validated against real-world threat intelligence databases</div>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">⚡</div>
+      <div class="feature-title">Redis Cache</div>
+      <div class="feature-desc">Sub-100ms redirects for previously scanned URLs</div>
+    </div>
+  </div>
+
+  <footer>
+    Built with FastAPI · AWS Bedrock · PostgreSQL · Redis ·
+    <a href="https://github.com/smritiig/safelink-ai" target="_blank">GitHub →</a>
+  </footer>
+
+</div>
+
+<script>
+  function toggleExpiry() {
+    document.getElementById('expiryDays').disabled = !document.getElementById('hasExpiry').checked;
+  }
+
+  function getRiskColor(score) {
+    if (score <= 3) return '#00ffe0';
+    if (score <= 6) return '#ffb800';
+    return '#ff3c5a';
+  }
+
+  function getRiskBadgeClass(score) {
+    if (score <= 3) return 'badge-safe';
+    if (score <= 6) return 'badge-warn';
+    return 'badge-danger';
+  }
+
+  function getRiskLabel(score) {
+    if (score <= 3) return '✓ Safe';
+    if (score <= 6) return '⚠ Suspicious';
+    return '✕ High Risk';
+  }
+
+  async function handleScan() {
+    const url = document.getElementById('urlInput').value.trim();
+    if (!url) return;
+
+    const btn = document.getElementById('scanBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner"></span>SCANNING';
+
+    const oneTime = document.getElementById('oneTime').checked;
+    const hasExpiry = document.getElementById('hasExpiry').checked;
+    const expiryDays = parseInt(document.getElementById('expiryDays').value);
+
+    const body = { url, one_time: oneTime };
+    if (hasExpiry) body.expires_in_days = expiryDays;
+
+    try {
+      const res = await fetch('/api/shorten', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.detail || 'Request failed');
+      }
+
+      const data = await res.json();
+      showResult(data);
+    } catch (e) {
+      alert('Error: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = 'SCAN →';
+    }
+  }
+
+  function showResult(data) {
+    const result = document.getElementById('result');
+    const shortUrlEl = document.getElementById('shortUrl');
+    const riskBar = document.getElementById('riskBar');
+    const riskBadge = document.getElementById('riskBadge');
+    const riskReason = document.getElementById('riskReason');
+
+    shortUrlEl.textContent = data.short_url;
+    shortUrlEl.href = data.short_url;
+
+    const score = data.risk_score;
+    const color = getRiskColor(score);
+
+    riskBar.style.width = (score * 10) + '%';
+    riskBar.style.background = color;
+
+    riskBadge.innerHTML = `<span class="risk-badge ${getRiskBadgeClass(score)}">${getRiskLabel(score)} · ${score}/10</span>`;
+    riskReason.textContent = data.risk_reason;
+
+    result.classList.add('show');
+  }
+
+  function copyUrl() {
+    const url = document.getElementById('shortUrl').textContent;
+    navigator.clipboard.writeText(url).then(() => {
+      const btn = document.querySelector('.copy-btn');
+      btn.textContent = 'COPIED!';
+      setTimeout(() => btn.textContent = 'COPY', 2000);
+    });
+  }
+
+  document.getElementById('urlInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleScan();
+  });
+</script>
+</body>
+</html>
