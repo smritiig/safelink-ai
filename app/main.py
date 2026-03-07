@@ -65,6 +65,11 @@ def shorten(request: Request, payload: ShortenRequest, db: Session = Depends(get
         raise HTTPException(status_code=500, detail="Code generation failed")
 
     risk_score, risk_reason = analyze_url(str(payload.url))
+    if risk_score >= 9:
+        raise HTTPException(
+        status_code=400,
+        detail=f"URL blocked: {risk_reason}"
+    )
 
     link = Link(
         code=code,

@@ -563,6 +563,17 @@
     return '✕ High Risk';
   }
 
+  function showBlocked(reason) {
+    const result = document.getElementById('result');
+    result.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+        <span class="risk-badge badge-danger">✕ URL BLOCKED</span>
+      </div>
+      <div class="risk-reason" style="color:#ff3c5a;line-height:1.7">${reason}</div>
+    `;
+    result.classList.add('show');
+  }
+
   async function handleScan() {
     const url = document.getElementById('urlInput').value.trim();
     if (!url) return;
@@ -587,13 +598,14 @@
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || 'Request failed');
+        showBlocked(err.detail || 'URL blocked');
+        return;
       }
 
       const data = await res.json();
       showResult(data);
     } catch (e) {
-      alert('Error: ' + e.message);
+      showBlocked(e.message);
     } finally {
       btn.disabled = false;
       btn.innerHTML = 'SCAN →';
