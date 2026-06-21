@@ -6,7 +6,7 @@ Built with FastAPI, PostgreSQL, Redis, AWS Bedrock (Claude Haiku 4.5), and a Rea
 
 ## Why this exists
 
-Most URL shorteners trust the link at creation time and never look at it again. SafeLink AI treats the moment of shortening as a security checkpoint: the destination is analyzed before a short code is ever handed out, and the result of that analysis governs what happens on every future visit.
+Most URL shorteners trust the link at creation time and never look at it again. SafeLink AI treats the moment of shortening as a security checkpoint: the destination is analyzed before the short link is allowed to redirect, and the result of that analysis governs what happens on every future visit.
 
 ## How it works
 
@@ -23,7 +23,8 @@ If Bedrock or VirusTotal is unavailable, the system degrades to a local heuristi
 
 ## Architecture
 
-The diagram above shows the full request lifecycle. A few decisions worth calling out:
+The diagram shows the full request lifecycle. A few decisions worth calling out:
+![SafeLink AI Architecture](docs/architecture.png)
 
 - **Async by design, not by accident.** The original implementation blocked the HTTP request on both API calls — every shorten request took 1–3 seconds. Moving analysis to a `BackgroundTask` cut perceived latency to near-zero, at the cost of a more complex state machine (`pending` → `completed`/`blocked`) and losing the ability to reject a URL before it's ever persisted.
 - **Redis caches the destination, not the verdict.** Once a link is scored safe, its destination is cached for an hour to avoid repeat database hits. This is a deliberate tradeoff: a link's risk score isn't re-evaluated on every cached hit, only its expiry is.
