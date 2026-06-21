@@ -9,5 +9,10 @@ class ShortenRequest(BaseModel):
 class ShortenResponse(BaseModel):
     code: str
     short_url: str
-    risk_score: int
-    risk_reason: str
+    status: str  # "pending" — risk fields aren't known yet at creation time
+
+class StatusResponse(BaseModel):
+    code: str
+    status: str  # "pending" | "completed" | "blocked"
+    risk_score: Optional[int] = None
+    risk_reason: Optional[str] = None

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SafeLink — Scanning</title>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #03050a;
+      --surface: #080c14;
+      --border: #0e1520;
+      --accent: #00ffe0;
+      --danger: #ff3c5a;
+      --warn: #ffb800;
+      --text: #c8d4e0;
+      --muted: #3a4a5a;
+      --font-display: 'Bebas Neue', sans-serif;
+      --font-mono: 'IBM Plex Mono', monospace;
+      --font-body: 'IBM Plex Sans', sans-serif;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,224,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,224,0.03) 1px, transparent 1px);
+      background-size: 48px 48px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    body::after {
+      content: '';
+      position: fixed;
+      top: -200px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 800px;
+      height: 600px;
+      background: radial-gradient(ellipse, rgba(0,255,224,0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .page {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .scan-ring {
+      width: 88px;
+      height: 88px;
+      border-radius: 50%;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      animation: spin 1s linear infinite;
+      margin-bottom: 32px;
+    }
+
+    .hero-eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: var(--accent);
+      background: rgba(0,255,224,0.06);
+      border: 1px solid rgba(0,255,224,0.15);
+      border-radius: 4px;
+      padding: 6px 14px;
+      margin-bottom: 24px;
+    }
+
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: blink 1.2s infinite;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(36px, 6vw, 56px);
+      letter-spacing: 3px;
+      color: #fff;
+      margin-bottom: 14px;
+      text-align: center;
+    }
+
+    p.sub {
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--muted);
+      text-align: center;
+      max-width: 380px;
+      line-height: 1.7;
+    }
+
+    .steps {
+      margin-top: 36px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--muted);
+    }
+
+    .step {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .step-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: background 0.3s;
+    }
+
+    .step.active .step-dot {
+      background: var(--accent);
+      box-shadow: 0 0 8px rgba(0,255,224,0.6);
+    }
+
+    .step.active { color: var(--text); }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+  </style>
+</head>
+<body>
+<div class="page">
+  <div class="scan-ring"></div>
+
+  <div class="hero-eyebrow">
+    <span class="dot"></span>
+    Analyzing
+  </div>
+
+  <h1>Scanning Your Link…</h1>
+  <p class="sub">Claude AI and VirusTotal are checking this destination for phishing and malware indicators. This usually takes a few seconds.</p>
+
+  <div class="steps">
+    <div class="step active" id="step1">
+      <div class="step-dot"></div>
+      <span>AI reasoning over URL structure</span>
+    </div>
+    <div class="step" id="step2">
+      <div class="step-dot"></div>
+      <span>Cross-checking VirusTotal threat database</span>
+    </div>
+    <div class="step" id="step3">
+      <div class="step-dot"></div>
+      <span>Finalizing risk score</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  const code = window.location.pathname.split("/").pop();
+  let pollCount = 0;
+  let stepTimer = null;
+
+  // Purely cosmetic step progression while we wait on the real poll result —
+  // gives a sense of progress even though we don't have granular server-side
+  // phase updates (would need a more complex pub/sub setup to do this for real).
+  function advanceCosmeticSteps() {
+    const steps = ['step1', 'step2', 'step3'];
+    let i = 0;
+    stepTimer = setInterval(() => {
+      if (i > 0) document.getElementById(steps[i - 1])?.classList.remove('active');
+      if (i < steps.length) {
+        document.getElementById(steps[i]).classList.add('active');
+        i++;
+      } else {
+        clearInterval(stepTimer);
+      }
+    }, 1200);
+  }
+
+  async function poll() {
+    pollCount++;
+    try {
+      const res = await fetch(`/api/status/${code}`);
+      if (!res.ok) {
+        // Link not found / deleted — stop polling
+        clearInterval(stepTimer);
+        document.querySelector('.sub').textContent = 'This link could not be found.';
+        return;
+      }
+      const data = await res.json();
+
+      if (data.status === 'pending') {
+        // keep polling
+        return;
+      }
+
+      clearInterval(stepTimer);
+
+      if (data.status === 'blocked') {
+        window.location.href = `/preview/${code}`;
+      } else {
+        // "completed" — let the normal redirect route decide (cache,
+        // risk-based preview routing, one-time deletion, etc.) instead of
+        // duplicating that logic here.
+        window.location.href = `/${code}`;
+      }
+    } catch (e) {
+      // Network hiccup — keep trying, the interval will retry
+    }
+  }
+
+  advanceCosmeticSteps();
+  poll();
+  const interval = setInterval(() => {
+    poll();
+    // Safety valve: stop polling after ~30s so a stuck scan doesn't poll forever
+    if (pollCount > 30) clearInterval(interval);
+  }, 1000);
+</script>
+</body>
+</html>

@@ -26,6 +26,6 @@ services:
       REDIS_URL: redis://redis:6379/0
       BASE_URL: http://localhost:8000
       AWS_REGION: us-east-1
-      BEDROCK_MODEL_ID: us.anthropic.claude-3-5-haiku-20241022-v1:0
+      BEDROCK_MODEL_ID: us.anthropic.claude-haiku-4-5-20251001-v1:0
     ports:
       - "8000:8000"

@@ -99,17 +99,57 @@ export default function Dashboard() {
         body: JSON.stringify({ url }),
       });
       const data = await res.json();
-      // fetch risk info
-      const infoRes = await fetch(`${API_BASE}/api/link/${data.code}`);
-      const info = await infoRes.json();
-      setScanResult({ ...data, ...info });
-      setUrl("");
-      setTimeout(fetchStats, 500);
+
+      if (!res.ok) {
+        setScanResult({ error: data.detail || "Could not create link" });
+        setScanning(false);
+        return;
+      }
+
+      // /api/shorten returns immediately with status "pending" — the actual
+      // Bedrock + VirusTotal scan runs in the background. Poll /api/status
+      // until it resolves to "completed" or "blocked".
+      setScanResult({ ...data, pending: true });
+      pollStatus(data.code, data.short_url);
     } catch (e) {
       setScanResult({ error: e.message });
-    } finally {
       setScanning(false);
     }
+  };
+
+  const pollStatus = (code, shortUrl) => {
+    let attempts = 0;
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch(`${API_BASE}/api/status/${code}`);
+        const data = await res.json();
+
+        if (data.status === "pending") {
+          if (attempts > 30) {
+            clearInterval(interval);
+            setScanResult({ error: "Scan is taking longer than expected." });
+            setScanning(false);
+          }
+          return;
+        }
+
+        clearInterval(interval);
+        setScanResult({
+          code,
+          short_url: shortUrl,
+          status: data.status,
+          risk_score: data.risk_score,
+          risk_reason: data.risk_reason,
+          original_url: url,
+        });
+        setUrl("");
+        setScanning(false);
+        setTimeout(fetchStats, 500);
+      } catch (e) {
+        // transient network error — let the interval retry
+      }
+    }, 1000);
   };
 
   const pieData = stats ? [
@@ -220,7 +260,31 @@ export default function Dashboard() {
             </button>
           </div>
 
-          {scanResult && !scanResult.error && (
+          {scanResult && scanResult.pending && (
+            <div style={{
+              marginTop: 16, padding: "16px 20px",
+              background: "#080a0f", borderRadius: 10,
+              border: "1px solid #2a2a2a",
+              fontSize: 12, color: "#777", fontFamily: "'DM Mono', monospace",
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <span style={{ animation: "pulse 1.2s infinite" }}>●</span>
+              Scanning with Claude AI + VirusTotal…
+            </div>
+          )}
+
+          {scanResult && scanResult.error && (
+            <div style={{
+              marginTop: 16, padding: "16px 20px",
+              background: "#080a0f", borderRadius: 10,
+              border: "1px solid #ff3c5a33",
+              fontSize: 12, color: "#ff3c5a", fontFamily: "'DM Mono', monospace",
+            }}>
+              {scanResult.error}
+            </div>
+          )}
+
+          {scanResult && !scanResult.error && !scanResult.pending && (
             <div style={{
               marginTop: 16, padding: "16px 20px",
               background: "#080a0f", borderRadius: 10,

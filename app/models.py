@@ -14,5 +14,9 @@ class Link(Base):
 
     one_time = Column(Boolean, default=False)
 
+    # "pending" -> scan in progress, "completed" -> scanned and safe to redirect,
+    # "blocked" -> scanned and risk_score >= 9, never redirects to original_url
+    status = Column(String(16), nullable=False, default="pending")
+
     risk_score = Column(Integer, nullable=True)
     risk_reason = Column(Text, nullable=True)

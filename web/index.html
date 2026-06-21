@@ -574,13 +574,26 @@
     result.classList.add('show');
   }
 
+  function showPending(shortUrl) {
+    const result = document.getElementById('result');
+    result.innerHTML = `
+      <div class="result-top">
+        <a class="short-url" href="#" style="pointer-events:none;opacity:0.6">${shortUrl}</a>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:11px;color:var(--muted)">
+        <span class="spinner"></span> Scanning with Claude AI + VirusTotal…
+      </div>
+    `;
+    result.classList.add('show');
+  }
+
   async function handleScan() {
     const url = document.getElementById('urlInput').value.trim();
     if (!url) return;
 
     const btn = document.getElementById('scanBtn');
     btn.disabled = true;
-    btn.innerHTML = '<span class="spinner"></span>SCANNING';
+    btn.innerHTML = '<span class="spinner"></span>SUBMITTING';
 
     const oneTime = document.getElementById('oneTime').checked;
     const hasExpiry = document.getElementById('hasExpiry').checked;
@@ -598,18 +611,58 @@
 
       if (!res.ok) {
         const err = await res.json();
-        showBlocked(err.detail || 'URL blocked');
+        showBlocked(err.detail || 'Could not create link');
         return;
       }
 
+      // /api/shorten now returns immediately with status "pending" — the
+      // actual Bedrock + VirusTotal analysis runs in the background. Show a
+      // scanning state, then poll until the result is ready.
       const data = await res.json();
-      showResult(data);
+      btn.innerHTML = '<span class="spinner"></span>SCANNING';
+      showPending(data.short_url);
+      pollForResult(data.code, data.short_url);
     } catch (e) {
       showBlocked(e.message);
-    } finally {
       btn.disabled = false;
       btn.innerHTML = 'SCAN →';
     }
+  }
+
+  function pollForResult(code, shortUrl) {
+    const btn = document.getElementById('scanBtn');
+    let attempts = 0;
+
+    const interval = setInterval(async () => {
+      attempts++;
+      try {
+        const res = await fetch(`/api/status/${code}`);
+        const data = await res.json();
+
+        if (data.status === 'pending') {
+          if (attempts > 30) {
+            // Safety valve — don't poll forever if something's stuck
+            clearInterval(interval);
+            showBlocked('Scan is taking longer than expected. Please try again.');
+            btn.disabled = false;
+            btn.innerHTML = 'SCAN →';
+          }
+          return;
+        }
+
+        clearInterval(interval);
+        btn.disabled = false;
+        btn.innerHTML = 'SCAN →';
+
+        if (data.status === 'blocked') {
+          showBlocked(data.risk_reason || 'This URL was blocked after analysis');
+        } else {
+          showResult({ short_url: shortUrl, risk_score: data.risk_score, risk_reason: data.risk_reason });
+        }
+      } catch (e) {
+        // transient network error — let the interval retry
+      }
+    }, 1000);
   }
 
   function showResult(data) {
@@ -619,17 +672,36 @@
     const riskBadge = document.getElementById('riskBadge');
     const riskReason = document.getElementById('riskReason');
 
-    shortUrlEl.textContent = data.short_url;
-    shortUrlEl.href = data.short_url;
+    result.innerHTML = `
+      <div class="result-top">
+        <a class="short-url" id="shortUrl" href="#" target="_blank"></a>
+        <button class="copy-btn" onclick="copyUrl()">COPY</button>
+      </div>
+      <div class="risk-bar-wrap">
+        <div class="risk-bar-label">
+          <span>RISK SCORE</span>
+          <span id="riskBadge"></span>
+        </div>
+        <div class="risk-bar-track">
+          <div class="risk-bar-fill" id="riskBar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="risk-reason" id="riskReason"></div>
+    `;
+
+    const shortUrlEl2 = document.getElementById('shortUrl');
+    shortUrlEl2.textContent = data.short_url;
+    shortUrlEl2.href = data.short_url;
 
     const score = data.risk_score;
     const color = getRiskColor(score);
 
-    riskBar.style.width = (score * 10) + '%';
-    riskBar.style.background = color;
+    const riskBar2 = document.getElementById('riskBar');
+    riskBar2.style.width = (score * 10) + '%';
+    riskBar2.style.background = color;
 
-    riskBadge.innerHTML = `<span class="risk-badge ${getRiskBadgeClass(score)}">${getRiskLabel(score)} · ${score}/10</span>`;
-    riskReason.textContent = data.risk_reason;
+    document.getElementById('riskBadge').innerHTML = `<span class="risk-badge ${getRiskBadgeClass(score)}">${getRiskLabel(score)} · ${score}/10</span>`;
+    document.getElementById('riskReason').textContent = data.risk_reason;
 
     result.classList.add('show');
   }
